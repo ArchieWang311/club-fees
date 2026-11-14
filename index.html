@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>羽球社分帳</title>
+<style>
+  body { font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif; margin: 0; background: #f5f7fa; color: #222; }
+  header { background: #1f6feb; color: #fff; padding: 12px 16px; }
+  header h1 { margin: 0; font-size: 20px; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+  label { display: block; font-size: 13px; color: #555; margin: 4px 0 2px; }
+  input[type=number], input[type=text], input[type=date] { padding: 6px; border: 1px solid #ccc; border-radius: 6px; width: 140px; font-size: 14px; }
+  button { padding: 6px 12px; border: none; border-radius: 6px; background: #1f6feb; color: #fff; cursor: pointer; font-size: 14px; }
+  button.ghost { background: #e5e9f0; color: #222; }
+  button.danger { background: #d1453b; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; white-space: nowrap; }
+  .num { text-align: right; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid #ccc; border-radius: 16px; padding: 4px 8px 4px 12px; font-size: 14px; background: #fff; }
+  .chip button { padding: 0 6px; margin-left: 4px; background: #e5e9f0; color: #333; }
+  .muted { color: #777; font-size: 13px; }
+  .total { font-weight: bold; }
+  .session { border: 1px solid #e3e7ee; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .session .row { margin-bottom: 10px; }
+  .scroll { overflow-x: auto; }
+  ol { padding-left: 20px; margin: 0; font-size: 14px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<header><h1>羽球社分帳</h1></header>
+<main>
+  <section>
+    <h2>使用說明</h2>
+    <ol>
+      <li>先在「社員名單」新增所有社員。</li>
+      <li>每週按「新增一週」，填日期、場地費、用球數與每顆單價。</li>
+      <li>勾選當週出席者；若是新人，再勾選「新人優惠」。</li>
+      <li>「總覽」會自動顯示每人應付金額。資料會自動存在這個瀏覽器中，要給別人可用「匯出」。</li>
+    </ol>
+  </section>
+
+  <div id="app"></div>
+</main>
+
+<input type="file" id="importFile" accept="application/json" hidden>
+
+<script>
+  // ---------- State ----------
+  const KEY = "badminton-split-v1";
+  let state = load() || { members: [], discountPct: 50, sessions: [] };
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage may be unavailable (e.g. some file:// setups) */ }
+  }
+  function commit() { save(); render(); }
+
+  // ---------- Helpers ----------
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function money(n) { return "NT$ " + Math.round(n).toLocaleString("zh-TW"); }
+  function num(v) { return Math.max(0, Math.round(Number(v) || 0)); }
+  function findSession(id) { return state.sessions.find(s => s.id === id); }
+  function memberExists(id) { return state.members.some(m => m.id === id); }
+
+  // ---------- Core calculation ----------
+  // Returns { total, shares: {memberId: amount}, useDiscount }
+  function calcSession(s) {
+    const total = num(s.venue) + num(s.shuttles) * num(s.shuttlePrice);
+    const ids = s.attendees.filter(memberExists);
+    const shares = {};
+    if (ids.length === 0) return { total, shares, useDiscount: false };
+
+    const base = total / ids.length;
+    const d = state.discountPct / 100;
+    const newbies = ids.filter(id => s.newbies.includes(id));
+    const regular = ids.filter(id => !s.newbies.includes(id));
+    // Discount only applies if at least one regular attendee can absorb the difference
+    const useDiscount = newbies.length > 0 && regular.length > 0;
+
+    let shortfall = 0;
+    ids.forEach(id => {
+      if (useDiscount && newbies.includes(id)) {
+        shares[id] = base * (1 - d);
+        shortfall += base * d;
+      } else {
+        shares[id] = base;
+      }
+    });
+    if (useDiscount) {
+      const extra = shortfall / regular.length;
+      regular.forEach(id => { shares[id] += extra; });
+    }
+
+    // Round to whole NT$, then put the rounding remainder on the first attendee so totals match
+    ids.forEach(id => { shares[id] = Math.round(shares[id]); });
+    const diff = total - ids.reduce((sum, id) => sum + shares[id], 0);
+    shares[ids[0]] += diff;
+
+    return { total, shares, useDiscount };
+  }
+
+  // ---------- Rendering ----------
+  function sessionHtml(s) {
+    const r = calcSession(s);
+    const attendeeCount = s.attendees.filter(memberExists).length;
+    const rows = state.members.map(m => {
+      const att = s.attendees.includes(m.id);
+      const nb = s.newbies.includes(m.id);
+      return `<tr>
+        <td>${esc(m.name)}</td>
+        <td><input type="checkbox" data-act="toggleAtt" data-s="${s.id}" data-id="${m.id}" ${att ? "checked" : ""}></td>
+        <td><input type="checkbox" data-act="toggleNew" data-s="${s.id}" data-id="${m.id}" ${nb ? "checked" : ""} ${att ? "" : "disabled"}></td>
+        <td class="num">${att && r.shares[m.id] !== undefined ? money(r.shares[m.id]) : "-"}</td>
+      </tr>`;
+    }).join("");
+
+    let note = "";
+    if (attendeeCount > 0) {
+      note = r.useDiscount
+        ? `已套用新人優惠（${state.discountPct}%）`
+        : (s.newbies.some(id => s.attendees.includes(id)) ? "需至少一位非新人出席才會套用新人優惠" : "");
+    }
+
+    return `<div class="session">
+      <div class="row">
+        <div><label>日期</label><input type="date" value="${esc(s.date)}" data-s="${s.id}" data-field="date"></div>
+        <div><label>場地費（NT$）</label><input type="number" min="0" value="${s.venue}" data-s="${s.id}" data-field="venue"></div>
+        <div><label>用球數（顆）</label><input type="number" min="0" value="${s.shuttles}" data-s="${s.id}" data-field="shuttles"></div>
+        <div><label>每顆單價（NT$）</label><input type="number" min="0" value="${s.shuttlePrice}" data-s="${s.id}" data-field="shuttlePrice"></div>
+        <button class="danger" data-act="delSession" data-s="${s.id}">刪除此週</button>
+      </div>
+      <div class="scroll">
+        <table>
+          <tr><th>社員</th><th>出席</th><th>新人優惠</th><th class="num">應付</th></tr>
+          ${rows}
+        </table>
+      </div>
+      <p class="total">合計 ${money(r.total)}　｜　出席 ${attendeeCount} 人${note ? "　（" + note + "）" : ""}</p>
+    </div>`;
+  }
+
+  function overviewHtml() {
+    if (!state.members.length || !state.sessions.length) {
+      return '<p class="muted">新增社員與每週紀錄後會顯示總覽。</p>';
+    }
+    const sorted = [...state.sessions].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const calcs = sorted.map(calcSession);
+
+    const head = sorted.map(s => `<th class="num">${esc(s.date || "未填日期")}</th>`).join("");
+    const body = state.members.map(m => {
+      let sum = 0;
+      const cells = sorted.map((s, i) => {
+        const v = calcs[i].shares[m.id];
+        if (v === undefined) return '<td class="num">-</td>';
+        sum += v;
+        return `<td class="num">${money(v)}</td>`;
+      }).join("");
+      return `<tr><td>${esc(m.name)}</td>${cells}<td class="num total">${money(sum)}</td></tr>`;
+    }).join("");
+    const foot = calcs.map(c => `<td class="num">${money(c.total)}</td>`).join("");
+
+    return `<div class="scroll"><table>
+      <tr><th>社員</th>${head}<th class="num">合計</th></tr>
+      ${body}
+      <tr><td class="total">場地＋球費</td>${foot}<td></td></tr>
+    </table></div>`;
+  }
+
+  function render() {
+    document.getElementById("app").innerHTML = `
+      <section>
+        <h2>社員名單</h2>
+        <div class="chips">
+          ${state.members.map(m => `<span class="chip">${esc(m.name)}<button data-act="rmMember" data-id="${m.id}" title="刪除">✕</button></span>`).join("") || '<span class="muted">尚無社員</span>'}
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div><label>姓名</label><input type="text" id="newName" placeholder="輸入姓名"></div>
+          <button data-act="addMember">新增社員</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>設定</h2>
+        <div class="row">
+          <div><label>新人優惠折扣（%）</label><input type="number" min="0" max="100" value="${state.discountPct}" data-act="setDiscount"></div>
+        </div>
+        <p class="muted">新人折扣的差額由同場其他非新人平均分攤。</p>
+      </section>
+
+      <section>
+        <h2>每週紀錄</h2>
+        <div class="row" style="margin-bottom:12px"><button data-act="addSession">＋ 新增一週</button></div>
+        ${state.sessions.map(sessionHtml).join("") || '<p class="muted">尚無紀錄</p>'}
+      </section>
+
+      <section>
+        <h2>總覽（各人應付金額）</h2>
+        ${overviewHtml()}
+      </section>
+
+      <section>
+        <h2>資料備份</h2>
+        <div class="row">
+          <button class="ghost" data-act="export">匯出 JSON</button>
+          <button class="ghost" data-act="importBtn">匯入 JSON</button>
+        </div>
+      </section>
+    `;
+  }
+
+  // ---------- Export / Import ----------
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "badminton-split-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function importJson(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data.members) || !Array.isArray(data.sessions)) throw new Error("bad format");
+        state = {
+          members: data.members,
+          discountPct: typeof data.discountPct === "number" ? data.discountPct : 50,
+          sessions: data.sessions
+        };
+        commit();
+      } catch (err) {
+        alert("檔案格式不正確，無法匯入。");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Events (event delegation) ----------
+  const app = document.getElementById("app");
+
+  app.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const act = el.dataset.act;
+
+    if (act === "addMember") {
+      const input = document.getElementById("newName");
+      const name = input.value.trim();
+      if (!name) return;
+      state.members.push({ id: uid(), name });
+    } else if (act === "rmMember") {
+      if (!confirm("確定刪除此社員？其出席紀錄也會一併移除。")) return;
+      const id = el.dataset.id;
+      state.members = state.members.filter(m => m.id !== id);
+      state.sessions.forEach(s => {
+        s.attendees = s.attendees.filter(x => x !== id);
+        s.newbies = s.newbies.filter(x => x !== id);
+      });
+    } else if (act === "addSession") {
+      state.sessions.push({
+        id: uid(),
+        date: new Date().toISOString().slice(0, 10),
+        venue: 0,
+        shuttles: 0,
+        shuttlePrice: 0,
+        attendees: [],
+        newbies: []
+      });
+    } else if (act === "delSession") {
+      if (!confirm("確定刪除此週紀錄？")) return;
+      state.sessions = state.sessions.filter(s => s.id !== el.dataset.s);
+    } else if (act === "export") {
+      exportJson();
+      return;
+    } else if (act === "importBtn") {
+      document.getElementById("importFile").click();
+      return;
+    } else {
+      return; // checkbox/input actions are handled in the change listener
+    }
+    commit();
+  });
+
+  app.addEventListener("change", e => {
+    const el = e.target;
+
+    if (el.id === "importFile") {
+      importJson(el.files[0]);
+      return;
+    }
+
+    const act = el.dataset.act;
+    if (act === "setDiscount") {
+      state.discountPct = Math.min(100, num(el.value));
+    } else if (act === "toggleAtt") {
+      const s = findSession(el.dataset.s);
+      const id = el.dataset.id;
+      if (el.checked) {
+        if (!s.attendees.includes(id)) s.attendees.push(id);
+      } else {
+        s.attendees = s.attendees.filter(x => x !== id);
+        s.newbies = s.newbies.filter(x => x !== id);
+      }
+    } else if (act === "toggleNew") {
+      const s = findSession(el.dataset.s);
+      const id = el.dataset.id;
+      if (el.checked) {
+        if (!s.newbies.includes(id)) s.newbies.push(id);
+      } else {
+        s.newbies = s.newbies.filter(x => x !== id);
+      }
+    } else if (el.dataset.field) {
+      const s = findSession(el.dataset.s);
+      const f = el.dataset.field;
+      s[f] = f === "date" ? el.value : num(el.value);
+    } else {
+      return;
+    }
+    commit();
+  });
+
+  // ---------- Init ----------
+  render();
+</script>
+</body>
+</html>
