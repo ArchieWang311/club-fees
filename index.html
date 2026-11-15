@@ -1,340 +1,1455 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>🏸 羽球社分帳</title>
+<meta name="description" content="羽球社每週分帳：填入場地費、球費與出席人數，立即算出每人應付金額，並自動保存在瀏覽器。">
+<meta name="theme-color" content="#0b3d2e">
+<title>羽球社分帳</title>
 <style>
-  body { font-family: system-ui, "Noto Sans TC", "Microsoft JhengHei", sans-serif; margin: 0; background: #f5f7fa; color: #222; }
-  header { background: #1f6feb; color: #fff; padding: 12px 16px; }
-  header h1 { margin: 0; font-size: 20px; }
-  main { max-width: 980px; margin: 0 auto; padding: 16px; }
-  section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  h2 { margin: 0 0 12px; font-size: 17px; }
-  label { display: block; font-size: 13px; color: #555; margin: 4px 0 2px; }
-  input[type=number], input[type=text], input[type=date] { padding: 6px; border: 1px solid #ccc; border-radius: 6px; width: 140px; font-size: 14px; }
-  button { padding: 6px 12px; border: none; border-radius: 6px; background: #1f6feb; color: #fff; cursor: pointer; font-size: 14px; }
-  button.ghost { background: #e5e9f0; color: #222; }
-  button.danger { background: #d1453b; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; white-space: nowrap; }
-  .num { text-align: right; }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { border: 1px solid #ccc; border-radius: 16px; padding: 4px 8px 4px 12px; font-size: 14px; background: #fff; }
-  .chip button { padding: 0 6px; margin-left: 4px; background: #e5e9f0; color: #333; }
-  .muted { color: #777; font-size: 13px; }
-  .total { font-weight: bold; }
-  .session { border: 1px solid #e3e7ee; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-  .session .row { margin-bottom: 10px; }
-  .scroll { overflow-x: auto; }
-  ol { padding-left: 20px; margin: 0; font-size: 14px; line-height: 1.7; }
+  :root {
+    --bg: #f3f5f0;
+    --ink: #14211b;
+    --muted: #64716a;
+    --line: #e2e8e1;
+    --card: #ffffff;
+    --accent: #127a5a;
+    --accent-hover: #0e6a4e;
+    --accent-dark: #0b3d2e;
+    --accent-soft: #e7f4ed;
+    --lime: #d9f99d;
+    --danger: #b4453c;
+    --shadow: 0 18px 40px -24px rgba(20, 40, 30, .35);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(900px 500px at 88% -8%, rgba(217, 249, 157, .38), transparent 62%),
+      radial-gradient(760px 460px at -12% 8%, rgba(18, 122, 90, .09), transparent 62%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+
+  .page {
+    width: min(1120px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 28px 0 40px;
+  }
+
+  /* ---------- Top bar ---------- */
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 56px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: var(--accent-dark);
+    color: var(--lime);
+    box-shadow: 0 10px 20px -10px rgba(11, 61, 46, .8);
+  }
+  .brand-mark svg { width: 26px; height: 26px; }
+  .brand-text strong {
+    display: block;
+    font-size: 1rem;
+    letter-spacing: .01em;
+  }
+  .brand-text small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: .76rem;
+    font-weight: 500;
+  }
+
+  .topbar-note {
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .62);
+    color: var(--muted);
+    font-size: .78rem;
+    white-space: nowrap;
+  }
+
+  /* ---------- Hero ---------- */
+
+  .hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+  .eyebrow {
+    margin: 0 0 10px;
+    color: var(--accent);
+    font-size: .8rem;
+    font-weight: 750;
+    letter-spacing: .14em;
+  }
+  .hero h1 {
+    margin: 0;
+    font-size: clamp(2.1rem, 4.6vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -.035em;
+  }
+  .hero-sub {
+    max-width: 34em;
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: #3d4d44;
+    font-size: .82rem;
+    font-weight: 650;
+    box-shadow: 0 8px 18px -16px rgba(20, 40, 30, .4);
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* ---------- Layout ---------- */
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  .form-card {
+    padding: 28px;
+    border: 1px solid rgba(20, 33, 27, .07);
+    border-radius: 26px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card-head h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+  }
+  .link-btn {
+    padding: 6px 2px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font-size: .84rem;
+    font-weight: 750;
+  }
+  .link-btn:hover { text-decoration: underline; }
+
+  .editing-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 20px;
+    padding: 10px 12px;
+    border: 1px solid #d3eadf;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: #235c47;
+    font-size: .82rem;
+  }
+  .editing-banner strong { font-weight: 750; }
+
+  .field { margin-bottom: 18px; }
+  .field:last-of-type { margin-bottom: 0; }
+  .field label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3b33;
+    font-size: .86rem;
+    font-weight: 700;
+  }
+  .hint {
+    margin: 7px 0 0;
+    color: var(--muted);
+    font-size: .76rem;
+  }
+
+  .money-input {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: #fbfcfa;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .money-input .prefix {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: .9rem;
+    font-weight: 700;
+  }
+  .money-input input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 8px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 1.5rem;
+    font-weight: 750;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .money-input input::placeholder { color: #c3ccc6; font-weight: 500; }
+  .money-input:focus-within {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 122, 90, .1);
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+  input[type="date"] {
+    width: 100%;
+    min-height: 51px;
+    padding: 13px 15px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    outline: 0;
+    background: #fbfcfa;
+    color: var(--ink);
+    font-size: .95rem;
+    font-weight: 600;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  input[type="date"]:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 122, 90, .1);
+  }
+
+  .stepper {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: #fbfcfa;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .stepper:focus-within {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 122, 90, .1);
+  }
+  .stepper button {
+    border: 0;
+    background: transparent;
+    color: #4a5a51;
+    font-size: 1.3rem;
+    font-weight: 500;
+    transition: background .15s;
+  }
+  .stepper button:hover { background: var(--accent-soft); }
+  .stepper button:active { background: #d8ecdf; }
+  .stepper input {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 0;
+    border: 0;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 1.5rem;
+    font-weight: 750;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .primary-btn {
+    width: 100%;
+    margin-top: 22px;
+    padding: 15px 18px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 750;
+    letter-spacing: .01em;
+    box-shadow: 0 12px 24px -12px rgba(18, 122, 90, .65);
+    transition: background .15s, transform .15s, opacity .15s;
+  }
+  .primary-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+  .primary-btn:active:not(:disabled) { transform: translateY(0); }
+  .primary-btn:disabled {
+    background: #b9c8c0;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: .7;
+  }
+
+  .storage-note {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: .72rem;
+    text-align: center;
+  }
+
+  /* ---------- Result ---------- */
+
+  .result-card {
+    position: sticky;
+    top: 24px;
+    min-height: 100%;
+    overflow: hidden;
+    padding: 30px;
+    border-radius: 26px;
+    background: radial-gradient(120% 130% at 100% 0%, #1a5c45 0%, #0d362a 45%, #08251d 100%);
+    color: #f2faf5;
+    box-shadow: 0 26px 50px -28px rgba(8, 37, 29, .75);
+  }
+  .result-decor {
+    position: absolute;
+    top: -14px;
+    right: -18px;
+    width: 190px;
+    height: 190px;
+    color: var(--lime);
+    opacity: .1;
+    transform: rotate(12deg);
+    pointer-events: none;
+  }
+  .result-decor svg { width: 100%; height: 100%; }
+
+  .result-label {
+    position: relative;
+    margin: 0 0 8px;
+    color: #9dbfae;
+    font-size: .8rem;
+    font-weight: 650;
+    letter-spacing: .12em;
+  }
+  .amount {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+    line-height: 1;
+  }
+  .amount .currency {
+    color: var(--lime);
+    font-size: 1.1rem;
+    font-weight: 650;
+    opacity: .9;
+  }
+  #perPerson {
+    color: var(--lime);
+    font-size: clamp(3.4rem, 6vw, 4.6rem);
+    font-weight: 800;
+    letter-spacing: -.05em;
+    font-variant-numeric: tabular-nums;
+  }
+  #perPerson.is-empty { color: #7b9d8c; }
+
+  .split-line {
+    position: relative;
+    min-height: 3.2em;
+    margin: 0;
+    color: #c8ddd2;
+    font-size: .93rem;
+    line-height: 1.65;
+  }
+
+  .result-breakdown {
+    position: relative;
+    display: grid;
+    gap: 11px;
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, .13);
+  }
+  .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: .9rem;
+  }
+  .row span { color: #a9c5b7; }
+  .row strong {
+    color: #f4fbf7;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .row.total {
+    margin-top: 2px;
+    padding-top: 11px;
+    border-top: 1px dashed rgba(255, 255, 255, .15);
+    font-size: .95rem;
+  }
+  .row.total strong { color: var(--lime); font-size: 1.05rem; }
+
+  .result-foot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding: 12px 14px;
+    border: 1px solid rgba(217, 249, 157, .16);
+    border-radius: 12px;
+    background: rgba(217, 249, 157, .08);
+    color: #d7ecc7;
+    font-size: .8rem;
+    line-height: 1.5;
+  }
+  .result-foot::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--lime);
+    opacity: .75;
+  }
+
+  /* ---------- History ---------- */
+
+  .history { margin-top: 46px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-head h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    letter-spacing: -.02em;
+  }
+  .history-meta {
+    margin-right: auto;
+    color: var(--muted);
+    font-size: .82rem;
+  }
+  .clear-all {
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #a8615a;
+    font-size: .8rem;
+    font-weight: 650;
+  }
+  .clear-all:hover { background: #fdf0ee; color: var(--danger); }
+
+  .history-list { display: grid; gap: 10px; }
+
+  .history-item {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(20, 33, 27, .08);
+    border-radius: 18px;
+    outline: 0;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
+  }
+  .history-item:hover {
+    border-color: #b7d7c5;
+    background: #fdfefd;
+    box-shadow: 0 12px 26px -20px rgba(18, 60, 43, .5);
+    transform: translateY(-1px);
+  }
+  .history-item:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(18, 122, 90, .15);
+  }
+  .history-item.active {
+    border-color: var(--accent);
+    background: #fbfefc;
+    box-shadow: 0 0 0 3px rgba(18, 122, 90, .1);
+  }
+
+  .date-chip {
+    width: 60px;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    border-radius: 12px;
+    background: #f0f6f1;
+    line-height: 1.05;
+  }
+  .date-month { color: var(--muted); font-size: .66rem; font-weight: 650; }
+  .date-day {
+    margin: 2px 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .date-week { color: var(--muted); font-size: .64rem; }
+
+  .item-main { min-width: 0; }
+  .item-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .item-title strong {
+    color: var(--accent);
+    font-size: 1.02rem;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .item-people { color: var(--muted); font-size: .8rem; font-weight: 600; }
+  .item-meta {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: .79rem;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .delete-btn {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #7f8d84;
+    transition: background .15s, color .15s;
+  }
+  .delete-btn:hover { background: #fdeceb; color: var(--danger); }
+  .delete-btn svg { width: 17px; height: 17px; }
+
+  .empty-state {
+    padding: 42px 24px;
+    border: 1.5px dashed #cfdad2;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .55);
+    color: var(--muted);
+    text-align: center;
+  }
+  .empty-state svg {
+    width: 42px;
+    height: 42px;
+    margin-bottom: 10px;
+    color: #a9bdb1;
+  }
+  .empty-state strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #405248;
+    font-size: .95rem;
+  }
+  .empty-state span { font-size: .82rem; }
+
+  /* ---------- Toast / footer ---------- */
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: calc(100vw - 32px);
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #14261e;
+    color: #f2faf5;
+    font-size: .85rem;
+    box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .45);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 16px);
+    transition: opacity .22s, transform .22s;
+  }
+  .toast.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, 0);
+  }
+  .toast-action {
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--lime);
+    font-size: .85rem;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+  .toast-action:hover { background: rgba(217, 249, 157, .12); }
+
+  footer {
+    margin-top: 44px;
+    color: var(--muted);
+    font-size: .74rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  @keyframes cardFlash {
+    0% { box-shadow: 0 0 0 0 rgba(18, 122, 90, .35); }
+    100% { box-shadow: 0 0 0 14px rgba(18, 122, 90, 0); }
+  }
+  .form-card.flash { animation: cardFlash .7s ease-out; }
+
+  /* ---------- Login ---------- */
+
+  .login-wrap { max-width: 440px; margin: 8px auto 0; }
+  .login-wrap h1 { margin: 0 0 6px; font-size: 1.7rem; letter-spacing: -.03em; }
+  .login-wrap .hero-sub { margin: 0 0 22px; font-size: .92rem; }
+  input[type="email"], input[type="password"] {
+    width: 100%;
+    min-height: 51px;
+    padding: 13px 15px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    outline: 0;
+    background: #fbfcfa;
+    color: var(--ink);
+    font-size: .95rem;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  input[type="email"]:focus, input[type="password"]:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(18, 122, 90, .1);
+  }
+  .login-error { min-height: 1.2em; margin: 12px 0 0; color: var(--danger); font-size: .82rem; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  /* ---------- Responsive ---------- */
+
+  @media (max-width: 900px) {
+    .page { padding-top: 20px; }
+    .topbar { margin-bottom: 34px; }
+    .layout { grid-template-columns: 1fr; }
+    .result-card { position: relative; top: auto; min-height: 0; }
+    .hero { margin-bottom: 22px; }
+  }
+
+  @media (max-width: 640px) {
+    .page { width: calc(100% - 28px); }
+    .topbar-note { display: none; }
+    .hero h1 { font-size: 2.05rem; }
+    .hero-sub { font-size: .92rem; }
+    .hero-badge { display: none; }
+    .form-card { padding: 20px; border-radius: 22px; }
+    .result-card { padding: 24px 22px; border-radius: 22px; }
+    .result-breakdown { margin-top: 22px; }
+    .history-item {
+      grid-template-columns: 52px minmax(0, 1fr) 32px;
+      gap: 12px;
+      padding: 12px;
+    }
+    .date-chip { width: 52px; min-height: 56px; }
+    .delete-btn { width: 32px; height: 32px; }
+    .toast { bottom: 14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      transition-duration: .01ms !important;
+    }
+  }
 </style>
 </head>
 <body>
-<header><h1>🏸 羽球社分帳</h1></header>
-<main>
-  <section>
-    <h2>使用說明</h2>
-    <ol>
-      <li>先在「社員名單」新增所有社員。</li>
-      <li>每週按「新增一週」，填日期、場地費、用球數與每顆單價。</li>
-      <li>勾選當週出席者；若是新人，再勾選「新人優惠」。</li>
-      <li>「總覽」會自動顯示每人應付金額。資料會自動存在這個瀏覽器中，要給別人可用「匯出」。</li>
-    </ol>
+<div class="page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M24 5 13 27h22L24 5Z" fill="currentColor" fill-opacity=".16" stroke="none"/>
+          <path d="M24 5v22M18.5 16h11M13 27l-4 9M35 27l4 9"/>
+          <circle cx="24" cy="37" r="6.5" fill="currentColor" fill-opacity=".22"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <strong>羽球社分帳</strong>
+        <small>每週總額 · 一次算好</small>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-note" id="userEmail" hidden></span>
+      <button type="button" class="link-btn" id="logoutBtn" hidden>登出</button>
+    </div>
+  </header>
+
+  <section id="loginView" class="login-wrap">
+    <form class="form-card" id="loginForm">
+      <h1>社員登入</h1>
+      <p class="hero-sub">登入後才看得到大家記的帳。帳號請找管理員開。</p>
+      <div class="field">
+        <label for="loginEmail">電子郵件</label>
+        <input type="email" id="loginEmail" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">密碼</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="primary-btn" id="loginBtn">登入</button>
+      <p class="login-error" id="loginError" role="alert"></p>
+    </form>
   </section>
 
-  <div id="app"></div>
-</main>
+  <main id="appView" hidden>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">每週分帳</p>
+        <h1>這週，每人要付多少？</h1>
+        <p class="hero-sub">填入場地費、球費和出席人數，平均分攤馬上算好。不用一筆一筆記帳。</p>
+      </div>
+      <div class="hero-badge"><span class="dot"></span>平均分攤 · 尾差給最後一位</div>
+    </section>
 
-<input type="file" id="importFile" accept="application/json" hidden>
+    <div class="layout">
+      <form class="form-card" id="entryForm" novalidate>
+        <div class="card-head">
+          <h2>這週的總數</h2>
+          <button type="button" class="link-btn" id="newBtn" hidden>＋ 新增一週</button>
+        </div>
 
+        <div class="editing-banner" id="editingBanner" hidden>
+          <span class="dot"></span>
+          <span>正在檢視 <strong id="editingDate"></strong> 的紀錄</span>
+        </div>
+
+        <div class="field">
+          <label for="date">日期</label>
+          <input type="date" id="date">
+        </div>
+
+        <div class="field">
+          <label for="court">場地費</label>
+          <div class="money-input">
+            <span class="prefix">NT$</span>
+            <input type="number" id="court" min="0" step="1" inputmode="numeric" placeholder="0" autocomplete="off">
+          </div>
+          <p class="hint">這週場地的總金額</p>
+        </div>
+
+        <div class="field">
+          <label for="shuttle">球費</label>
+          <div class="money-input">
+            <span class="prefix">NT$</span>
+            <input type="number" id="shuttle" min="0" step="1" inputmode="numeric" placeholder="0" autocomplete="off">
+          </div>
+          <p class="hint">這週用掉的球，總共多少錢</p>
+        </div>
+
+        <div class="field">
+          <label for="headcount">出席人數</label>
+          <div class="stepper">
+            <button type="button" id="minusBtn" aria-label="減少一人">−</button>
+            <input type="number" id="headcount" min="1" step="1" inputmode="numeric" placeholder="1" autocomplete="off">
+            <button type="button" id="plusBtn" aria-label="增加一人">＋</button>
+          </div>
+          <p class="hint">包含社員和臨打，算人頭就好</p>
+        </div>
+
+        <button type="submit" class="primary-btn" id="saveBtn">計算</button>
+        <p class="storage-note">按「計算」會把這週的數字和金額記進共用帳本，所有社員都看得到。</p>
+      </form>
+
+      <aside class="result-card" aria-live="polite">
+        <div class="result-decor" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 5 13 27h22L24 5Z" fill="currentColor" fill-opacity=".14" stroke="none"/>
+            <path d="M24 5v22M18.5 16h11M13 27l-4 9M35 27l4 9"/>
+            <circle cx="24" cy="37" r="6.5" fill="currentColor" fill-opacity=".2"/>
+          </svg>
+        </div>
+
+        <p class="result-label">這週每人應付</p>
+        <div class="amount">
+          <span class="currency">NT$</span>
+          <span id="perPerson" class="is-empty">—</span>
+        </div>
+        <p class="split-line" id="splitLine">填入左邊的數字，馬上算給你看。</p>
+
+        <div class="result-breakdown">
+          <div class="row"><span>場地費</span><strong id="bCourt">$0</strong></div>
+          <div class="row"><span>球費</span><strong id="bShuttle">$0</strong></div>
+          <div class="row total"><span>總支出</span><strong id="bTotal">$0</strong></div>
+          <div class="row"><span>出席人數</span><strong id="bPeople">—</strong></div>
+        </div>
+
+        <div class="result-foot" id="remainderNote">平均分攤 · 尾差由最後一位吸收</div>
+      </aside>
+    </div>
+
+    <section class="history" aria-labelledby="historyTitle">
+      <div class="section-head">
+        <h2 id="historyTitle">大家記過的每一週</h2>
+        <span class="history-meta" id="historyMeta"></span>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </section>
+  </main>
+
+  <footer>羽球社分帳 · 平均分攤，尾差由最後一位吸收</footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span id="toastMsg"></span>
+  <button type="button" class="toast-action" id="toastAction" hidden></button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // ---------- State ----------
-  const KEY = "badminton-split-v1";
-  let state = load() || { members: [], discountPct: 50, sessions: [] };
+(() => {
+  'use strict';
 
-  function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
-  }
-  function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage may be unavailable (e.g. some file:// setups) */ }
-  }
-  function commit() { save(); render(); }
+  const SUPABASE_URL = 'https://uhhyqivfgarqupcxrmov.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_GgEgbyzzCs-1Li0VhENX-w_-t_gEjRm';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // ---------- Helpers ----------
-  function uid() { return Math.random().toString(36).slice(2, 10); }
-  function esc(s) {
-    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-  function money(n) { return "NT$ " + Math.round(n).toLocaleString("zh-TW"); }
-  function num(v) { return Math.max(0, Math.round(Number(v) || 0)); }
-  function findSession(id) { return state.sessions.find(s => s.id === id); }
-  function memberExists(id) { return state.members.some(m => m.id === id); }
+  const STORAGE_KEY = 'badminton-club-split-v1';
+  const DRAFT_KEY = STORAGE_KEY + ':draft';
 
-  // ---------- Core calculation ----------
-  // Returns { total, shares: {memberId: amount}, useDiscount }
-  function calcSession(s) {
-    const total = num(s.venue) + num(s.shuttles) * num(s.shuttlePrice);
-    const ids = s.attendees.filter(memberExists);
-    const shares = {};
-    if (ids.length === 0) return { total, shares, useDiscount: false };
+  const $ = (id) => document.getElementById(id);
 
-    const base = total / ids.length;
-    const d = state.discountPct / 100;
-    const newbies = ids.filter(id => s.newbies.includes(id));
-    const regular = ids.filter(id => !s.newbies.includes(id));
-    // Discount only applies if at least one regular attendee can absorb the difference
-    const useDiscount = newbies.length > 0 && regular.length > 0;
+  const dateEl = $('date');
+  const courtEl = $('court');
+  const shuttleEl = $('shuttle');
+  const headcountEl = $('headcount');
+  const minusBtn = $('minusBtn');
+  const plusBtn = $('plusBtn');
+  const formEl = $('entryForm');
+  const formCard = document.querySelector('.form-card');
+  const saveBtn = $('saveBtn');
+  const newBtn = $('newBtn');
+  const editingBanner = $('editingBanner');
+  const editingDate = $('editingDate');
+  const perPersonEl = $('perPerson');
+  const splitLineEl = $('splitLine');
+  const bCourtEl = $('bCourt');
+  const bShuttleEl = $('bShuttle');
+  const bTotalEl = $('bTotal');
+  const bPeopleEl = $('bPeople');
+  const remainderNoteEl = $('remainderNote');
+  const historyListEl = $('historyList');
+  const historyMetaEl = $('historyMeta');
+  const loginView = $('loginView');
+  const appView = $('appView');
+  const loginForm = $('loginForm');
+  const loginEmailEl = $('loginEmail');
+  const loginPasswordEl = $('loginPassword');
+  const loginBtn = $('loginBtn');
+  const loginErrorEl = $('loginError');
+  const userEmailEl = $('userEmail');
+  const logoutBtn = $('logoutBtn');
+  const toastEl = $('toast');
+  const toastMsgEl = $('toastMsg');
+  const toastActionEl = $('toastAction');
 
-    let shortfall = 0;
-    ids.forEach(id => {
-      if (useDiscount && newbies.includes(id)) {
-        shares[id] = base * (1 - d);
-        shortfall += base * d;
-      } else {
-        shares[id] = base;
-      }
-    });
-    if (useDiscount) {
-      const extra = shortfall / regular.length;
-      regular.forEach(id => { shares[id] += extra; });
-    }
+  const moneyFmt = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 });
+  const avgFmt = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 2 });
 
-    // Round to whole NT$, then put the rounding remainder on the first attendee so totals match
-    ids.forEach(id => { shares[id] = Math.round(shares[id]); });
-    const diff = total - ids.reduce((sum, id) => sum + shares[id], 0);
-    shares[ids[0]] += diff;
+  let records = [];
+  let editingId = null;
+  let toastTimer = null;
 
-    return { total, shares, useDiscount };
-  }
+  function pad(n) { return String(n).padStart(2, '0'); }
 
-  // ---------- Rendering ----------
-  function sessionHtml(s) {
-    const r = calcSession(s);
-    const attendeeCount = s.attendees.filter(memberExists).length;
-    const rows = state.members.map(m => {
-      const att = s.attendees.includes(m.id);
-      const nb = s.newbies.includes(m.id);
-      return `<tr>
-        <td>${esc(m.name)}</td>
-        <td><input type="checkbox" data-act="toggleAtt" data-s="${s.id}" data-id="${m.id}" ${att ? "checked" : ""}></td>
-        <td><input type="checkbox" data-act="toggleNew" data-s="${s.id}" data-id="${m.id}" ${nb ? "checked" : ""} ${att ? "" : "disabled"}></td>
-        <td class="num">${att && r.shares[m.id] !== undefined ? money(r.shares[m.id]) : "-"}</td>
-      </tr>`;
-    }).join("");
-
-    let note = "";
-    if (attendeeCount > 0) {
-      note = r.useDiscount
-        ? `已套用新人優惠（${state.discountPct}%）`
-        : (s.newbies.some(id => s.attendees.includes(id)) ? "需至少一位非新人出席才會套用新人優惠" : "");
-    }
-
-    return `<div class="session">
-      <div class="row">
-        <div><label>日期</label><input type="date" value="${esc(s.date)}" data-s="${s.id}" data-field="date"></div>
-        <div><label>場地費（NT$）</label><input type="number" min="0" value="${s.venue}" data-s="${s.id}" data-field="venue"></div>
-        <div><label>用球數（顆）</label><input type="number" min="0" value="${s.shuttles}" data-s="${s.id}" data-field="shuttles"></div>
-        <div><label>每顆單價（NT$）</label><input type="number" min="0" value="${s.shuttlePrice}" data-s="${s.id}" data-field="shuttlePrice"></div>
-        <button class="danger" data-act="delSession" data-s="${s.id}">刪除此週</button>
-      </div>
-      <div class="scroll">
-        <table>
-          <tr><th>社員</th><th>出席</th><th>新人優惠</th><th class="num">應付</th></tr>
-          ${rows}
-        </table>
-      </div>
-      <p class="total">合計 ${money(r.total)}　｜　出席 ${attendeeCount} 人${note ? "　（" + note + "）" : ""}</p>
-    </div>`;
+  function todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
-  function overviewHtml() {
-    if (!state.members.length || !state.sessions.length) {
-      return '<p class="muted">新增社員與每週紀錄後會顯示總覽。</p>';
-    }
-    const sorted = [...state.sessions].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-    const calcs = sorted.map(calcSession);
-
-    const head = sorted.map(s => `<th class="num">${esc(s.date || "未填日期")}</th>`).join("");
-    const body = state.members.map(m => {
-      let sum = 0;
-      const cells = sorted.map((s, i) => {
-        const v = calcs[i].shares[m.id];
-        if (v === undefined) return '<td class="num">-</td>';
-        sum += v;
-        return `<td class="num">${money(v)}</td>`;
-      }).join("");
-      return `<tr><td>${esc(m.name)}</td>${cells}<td class="num total">${money(sum)}</td></tr>`;
-    }).join("");
-    const foot = calcs.map(c => `<td class="num">${money(c.total)}</td>`).join("");
-
-    return `<div class="scroll"><table>
-      <tr><th>社員</th>${head}<th class="num">合計</th></tr>
-      ${body}
-      <tr><td class="total">場地＋球費</td>${foot}<td></td></tr>
-    </table></div>`;
+  function parseISODate(iso) {
+    if (!iso) return null;
+    const parts = String(iso).split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
-  function render() {
-    document.getElementById("app").innerHTML = `
-      <section>
-        <h2>社員名單</h2>
-        <div class="chips">
-          ${state.members.map(m => `<span class="chip">${esc(m.name)}<button data-act="rmMember" data-id="${m.id}" title="刪除">✕</button></span>`).join("") || '<span class="muted">尚無社員</span>'}
-        </div>
-        <div class="row" style="margin-top:12px">
-          <div><label>姓名</label><input type="text" id="newName" placeholder="輸入姓名"></div>
-          <button data-act="addMember">新增社員</button>
-        </div>
-      </section>
-
-      <section>
-        <h2>設定</h2>
-        <div class="row">
-          <div><label>新人優惠折扣（%）</label><input type="number" min="0" max="100" value="${state.discountPct}" data-act="setDiscount"></div>
-        </div>
-        <p class="muted">新人折扣的差額由同場其他非新人平均分攤。</p>
-      </section>
-
-      <section>
-        <h2>每週紀錄</h2>
-        <div class="row" style="margin-bottom:12px"><button data-act="addSession">＋ 新增一週</button></div>
-        ${state.sessions.map(sessionHtml).join("") || '<p class="muted">尚無紀錄</p>'}
-      </section>
-
-      <section>
-        <h2>總覽（各人應付金額）</h2>
-        ${overviewHtml()}
-      </section>
-
-      <section>
-        <h2>資料備份</h2>
-        <div class="row">
-          <button class="ghost" data-act="export">匯出 JSON</button>
-          <button class="ghost" data-act="importBtn">匯入 JSON</button>
-        </div>
-      </section>
-    `;
+  function shortDate(iso) {
+    const d = parseISODate(iso);
+    if (!d) return String(iso || '—');
+    const week = d.toLocaleDateString('zh-TW', { weekday: 'short' }).replace('週', '');
+    return `${d.getMonth() + 1}/${d.getDate()}（${week}）`;
   }
 
-  // ---------- Export / Import ----------
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "badminton-split-" + new Date().toISOString().slice(0, 10) + ".json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function importJson(file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result);
-        if (!Array.isArray(data.members) || !Array.isArray(data.sessions)) throw new Error("bad format");
-        state = {
-          members: data.members,
-          discountPct: typeof data.discountPct === "number" ? data.discountPct : 50,
-          sessions: data.sessions
-        };
-        commit();
-      } catch (err) {
-        alert("檔案格式不正確，無法匯入。");
-      }
+  function dateChipParts(iso) {
+    const d = parseISODate(iso);
+    if (!d) return { month: '—', day: '—', week: '' };
+    return {
+      month: `${d.getMonth() + 1}月`,
+      day: String(d.getDate()),
+      week: d.toLocaleDateString('zh-TW', { weekday: 'short' })
     };
-    reader.readAsText(file);
   }
 
-  // ---------- Events (event delegation) ----------
-  const app = document.getElementById("app");
+  function formatMoney(n) {
+    return moneyFmt.format(Math.round(Number(n) || 0));
+  }
 
-  app.addEventListener("click", e => {
-    const el = e.target.closest("[data-act]");
-    if (!el) return;
-    const act = el.dataset.act;
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
-    if (act === "addMember") {
-      const input = document.getElementById("newName");
-      const name = input.value.trim();
-      if (!name) return;
-      state.members.push({ id: uid(), name });
-    } else if (act === "rmMember") {
-      if (!confirm("確定刪除此社員？其出席紀錄也會一併移除。")) return;
-      const id = el.dataset.id;
-      state.members = state.members.filter(m => m.id !== id);
-      state.sessions.forEach(s => {
-        s.attendees = s.attendees.filter(x => x !== id);
-        s.newbies = s.newbies.filter(x => x !== id);
-      });
-    } else if (act === "addSession") {
-      state.sessions.push({
-        id: uid(),
-        date: new Date().toISOString().slice(0, 10),
-        venue: 0,
-        shuttles: 0,
-        shuttlePrice: 0,
-        attendees: [],
-        newbies: []
-      });
-    } else if (act === "delSession") {
-      if (!confirm("確定刪除此週紀錄？")) return;
-      state.sessions = state.sessions.filter(s => s.id !== el.dataset.s);
-    } else if (act === "export") {
-      exportJson();
-      return;
-    } else if (act === "importBtn") {
-      document.getElementById("importFile").click();
-      return;
-    } else {
-      return; // checkbox/input actions are handled in the change listener
+  function makeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      try { return window.crypto.randomUUID(); } catch (e) { /* fall through */ }
     }
-    commit();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function normalizeRecord(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const court = Number(raw.court);
+    const shuttle = Number(raw.shuttle);
+    const headcount = Math.floor(Number(raw.headcount));
+    if (!raw.id || !raw.date) return null;
+    if (!Number.isFinite(court) || court < 0) return null;
+    if (!Number.isFinite(shuttle) || shuttle < 0) return null;
+    if (!Number.isFinite(headcount) || headcount < 1) return null;
+    return {
+      id: String(raw.id),
+      date: String(raw.date),
+      court: Math.round(court),
+      shuttle: Math.round(shuttle),
+      headcount,
+      createdAt: Date.parse(raw.created_at) || 0,
+      by: raw.created_by_email ? String(raw.created_by_email) : ''
+    };
+  }
+
+  async function fetchRecords() {
+    const { data, error } = await sb.from('ledger').select('*').order('date', { ascending: false });
+    if (error) {
+      showToast('讀取帳本失敗：' + error.message);
+      return false;
+    }
+    records = (data || []).map(normalizeRecord).filter(Boolean);
+    return true;
+  }
+
+  function loadDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      return (data && typeof data === 'object') ? data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        date: dateEl.value,
+        court: courtEl.value,
+        shuttle: shuttleEl.value,
+        headcount: headcountEl.value,
+        editingId
+      }));
+    } catch (e) { /* storage may be unavailable */ }
+  }
+
+  function readInputs() {
+    return {
+      court: Math.max(0, Math.round(Number(courtEl.value) || 0)),
+      shuttle: Math.max(0, Math.round(Number(shuttleEl.value) || 0)),
+      headcount: Math.floor(Number(headcountEl.value))
+    };
+  }
+
+  function splitTotal(total, headcount) {
+    const per = Math.round(total / headcount);
+    const last = total - per * (headcount - 1);
+    return { per, last, diff: last - per };
+  }
+
+  function update() {
+    const { court, shuttle, headcount } = readInputs();
+    const total = court + shuttle;
+    const validPeople = Number.isInteger(headcount) && headcount >= 1;
+
+    bCourtEl.textContent = '$' + formatMoney(court);
+    bShuttleEl.textContent = '$' + formatMoney(shuttle);
+    bTotalEl.textContent = '$' + formatMoney(total);
+    bPeopleEl.textContent = validPeople ? `${headcount} 人` : '—';
+
+    if (validPeople) {
+      const { per, last, diff } = splitTotal(total, headcount);
+      perPersonEl.textContent = formatMoney(per);
+      perPersonEl.classList.remove('is-empty');
+
+      if (headcount === 1) {
+        splitLineEl.textContent = `只有 1 個人，這週全額 $${formatMoney(total)} 由這位買單。`;
+      } else if (diff === 0) {
+        splitLineEl.textContent = `${headcount} 人平均分攤，每人 $${formatMoney(per)}，剛好整除。`;
+      } else {
+        splitLineEl.textContent = `前 ${headcount - 1} 人各 $${formatMoney(per)}，最後一位 $${formatMoney(last)}。`;
+      }
+
+      if (diff === 0) {
+        remainderNoteEl.textContent = '剛好整除，沒有尾差。';
+      } else if (diff > 0) {
+        remainderNoteEl.textContent = `尾差 $${formatMoney(diff)} 由最後一位多付。`;
+      } else {
+        remainderNoteEl.textContent = `最後一位少付 $${formatMoney(-diff)}。`;
+      }
+
+      if (total > 0 && headcount > 1 && total % headcount !== 0) {
+        splitLineEl.title = `平均每人 $${avgFmt.format(total / headcount)} 元`;
+      } else {
+        splitLineEl.removeAttribute('title');
+      }
+    } else {
+      perPersonEl.textContent = '—';
+      perPersonEl.classList.add('is-empty');
+      splitLineEl.textContent = '填入出席人數，馬上幫你算。';
+      splitLineEl.removeAttribute('title');
+      remainderNoteEl.textContent = '平均分攤 · 尾差由最後一位吸收';
+    }
+
+    saveBtn.disabled = !(validPeople && total > 0 && !!dateEl.value);
+  }
+
+  function updateEditingUI() {
+    const rec = records.find((r) => r.id === editingId);
+    editingBanner.hidden = !rec;
+    newBtn.hidden = !rec;
+    saveBtn.textContent = rec ? '重新計算並更新' : '計算';
+    if (rec) editingDate.textContent = shortDate(rec.date);
+
+    document.querySelectorAll('.history-item').forEach((el) => {
+      el.classList.toggle('active', el.dataset.id === editingId);
+    });
+  }
+
+  function renderHistory() {
+    historyListEl.replaceChildren();
+    historyMetaEl.textContent = records.length ? `共 ${records.length} 週` : '';
+
+    if (!records.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = `
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M24 5 13 27h22L24 5Z" fill="currentColor" fill-opacity=".12" stroke="none"/>
+          <path d="M24 5v22M18.5 16h11M13 27l-4 9M35 27l4 9"/>
+          <circle cx="24" cy="37" r="6.5" fill="currentColor" fill-opacity=".18"/>
+        </svg>
+        <strong>還沒有任何紀錄</strong>
+        <span>算好這週的數字後，按「計算」就會記在這裡。</span>
+      `;
+      historyListEl.appendChild(empty);
+      return;
+    }
+
+    const sorted = records.slice().sort((a, b) => {
+      const byDate = String(b.date).localeCompare(String(a.date));
+      return byDate !== 0 ? byDate : (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    const frag = document.createDocumentFragment();
+
+    sorted.forEach((rec) => {
+      const { per } = splitTotal(rec.court + rec.shuttle, rec.headcount);
+      const total = rec.court + rec.shuttle;
+      const chip = dateChipParts(rec.date);
+
+      const item = document.createElement('div');
+      item.className = 'history-item' + (rec.id === editingId ? ' active' : '');
+      item.dataset.id = rec.id;
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
+      item.setAttribute('aria-label', `載入 ${shortDate(rec.date)} 的紀錄，${rec.headcount} 人，每人 ${formatMoney(per)} 元`);
+
+      item.innerHTML = `
+        <div class="date-chip">
+          <span class="date-month">${chip.month}</span>
+          <span class="date-day">${chip.day}</span>
+          <span class="date-week">${chip.week}</span>
+        </div>
+        <div class="item-main">
+          <div class="item-title">
+            <strong>每人 $${formatMoney(per)}</strong>
+            <span class="item-people">${rec.headcount} 人</span>
+          </div>
+          <div class="item-meta">場地 $${formatMoney(rec.court)} ・ 球 $${formatMoney(rec.shuttle)} ・ 總支出 $${formatMoney(total)}${rec.by ? ' ・ 記錄者 ' + esc(rec.by) : ''}</div>
+        </div>
+        <button type="button" class="delete-btn" aria-label="刪除 ${shortDate(rec.date)} 的紀錄">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h16M9 7V4h6v3M8 7l1 13h6l1-13M10 11v5M14 11v5"/>
+          </svg>
+        </button>
+      `;
+
+      item.addEventListener('click', () => loadRecord(rec.id, true));
+      item.addEventListener('keydown', (event) => {
+        if (event.target !== item) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          loadRecord(rec.id, true);
+        }
+      });
+
+      item.querySelector('.delete-btn').addEventListener('click', (event) => {
+        event.stopPropagation();
+        deleteRecord(rec.id);
+      });
+
+      frag.appendChild(item);
+    });
+
+    historyListEl.appendChild(frag);
+  }
+
+  function loadRecord(id, shouldScroll) {
+    const rec = records.find((r) => r.id === id);
+    if (!rec) return;
+
+    dateEl.value = rec.date || todayISO();
+    courtEl.value = rec.court ? String(rec.court) : '';
+    shuttleEl.value = rec.shuttle ? String(rec.shuttle) : '';
+    headcountEl.value = String(rec.headcount);
+    editingId = rec.id;
+
+    updateEditingUI();
+    update();
+    saveDraft();
+
+    if (shouldScroll) {
+      formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      formCard.classList.remove('flash');
+      void formCard.offsetWidth;
+      formCard.classList.add('flash');
+      window.setTimeout(() => formCard.classList.remove('flash'), 750);
+    }
+  }
+
+  function startNewWeek(shouldFocus) {
+    editingId = null;
+    dateEl.value = todayISO();
+    courtEl.value = '';
+    shuttleEl.value = '';
+    headcountEl.value = '';
+
+    updateEditingUI();
+    update();
+    saveDraft();
+
+    if (shouldFocus) courtEl.focus();
+  }
+
+  async function handleSave(event) {
+    if (event) event.preventDefault();
+
+    const { court, shuttle, headcount } = readInputs();
+    const total = court + shuttle;
+
+    if (!Number.isInteger(headcount) || headcount < 1) {
+      showToast('請先填出席人數');
+      headcountEl.focus();
+      return;
+    }
+    if (total <= 0) {
+      showToast('場地費和球費至少填一項');
+      courtEl.focus();
+      return;
+    }
+    if (!dateEl.value) {
+      showToast('請選擇日期');
+      dateEl.focus();
+      return;
+    }
+
+    const { per, last } = splitTotal(total, headcount);
+    const row = {
+      date: dateEl.value,
+      court,
+      shuttle,
+      headcount,
+      per_person: per,
+      last_person: last
+    };
+
+    saveBtn.disabled = true;
+    const isUpdate = !!records.find((r) => r.id === editingId);
+    const query = isUpdate
+      ? sb.from('ledger').update(row).eq('id', editingId)
+      : sb.from('ledger').insert(row);
+    const { data, error } = await query.select().single();
+    saveBtn.disabled = false;
+
+    if (error) {
+      showToast('記帳失敗：' + error.message);
+      update();
+      return;
+    }
+
+    const rec = normalizeRecord(data);
+    if (isUpdate) {
+      records = records.map((r) => (r.id === rec.id ? rec : r));
+    } else {
+      records.push(rec);
+    }
+    editingId = rec.id;
+
+    updateEditingUI();
+    renderHistory();
+    update();
+    saveDraft();
+    showToast(isUpdate ? '已更新這週的紀錄' : '已記進共用帳本');
+  }
+
+  async function deleteRecord(id) {
+    const rec = records.find((r) => r.id === id);
+    if (!rec) return;
+    if (!window.confirm(`確定要刪除 ${shortDate(rec.date)} 這筆紀錄嗎？所有社員都會看不到，無法復原。`)) return;
+
+    const { error } = await sb.from('ledger').delete().eq('id', id);
+    if (error) {
+      showToast('刪除失敗：' + error.message);
+      return;
+    }
+
+    records = records.filter((r) => r.id !== id);
+    if (editingId === id) {
+      editingId = null;
+      dateEl.value = todayISO();
+      courtEl.value = '';
+      shuttleEl.value = '';
+      headcountEl.value = '';
+      updateEditingUI();
+      update();
+      saveDraft();
+    }
+    renderHistory();
+    showToast(`已刪除 ${shortDate(rec.date)} 的紀錄`);
+  }
+
+  function showToast(message, actionLabel, action, duration = 3200) {
+    window.clearTimeout(toastTimer);
+    toastMsgEl.textContent = message;
+
+    if (actionLabel && typeof action === 'function') {
+      toastActionEl.hidden = false;
+      toastActionEl.textContent = actionLabel;
+      toastActionEl.onclick = () => {
+        hideToast();
+        action();
+      };
+    } else {
+      toastActionEl.hidden = true;
+      toastActionEl.textContent = '';
+      toastActionEl.onclick = null;
+    }
+
+    toastEl.classList.add('show');
+    toastTimer = window.setTimeout(hideToast, duration);
+  }
+
+  function hideToast() {
+    window.clearTimeout(toastTimer);
+    toastEl.classList.remove('show');
+  }
+
+  function normalizeAmountField(el) {
+    if (el.value === '') return;
+    const value = Math.max(0, Math.round(Number(el.value) || 0));
+    el.value = String(value);
+    update();
+  }
+
+  function normalizeHeadcountField() {
+    if (headcountEl.value === '') return;
+    const value = Math.max(1, Math.floor(Number(headcountEl.value) || 1));
+    headcountEl.value = String(value);
+    update();
+  }
+
+  /* ---------- Events ---------- */
+
+  [courtEl, shuttleEl, headcountEl].forEach((el) => {
+    el.addEventListener('input', () => {
+      update();
+      saveDraft();
+    });
   });
 
-  app.addEventListener("change", e => {
-    const el = e.target;
-
-    if (el.id === "importFile") {
-      importJson(el.files[0]);
-      return;
-    }
-
-    const act = el.dataset.act;
-    if (act === "setDiscount") {
-      state.discountPct = Math.min(100, num(el.value));
-    } else if (act === "toggleAtt") {
-      const s = findSession(el.dataset.s);
-      const id = el.dataset.id;
-      if (el.checked) {
-        if (!s.attendees.includes(id)) s.attendees.push(id);
-      } else {
-        s.attendees = s.attendees.filter(x => x !== id);
-        s.newbies = s.newbies.filter(x => x !== id);
-      }
-    } else if (act === "toggleNew") {
-      const s = findSession(el.dataset.s);
-      const id = el.dataset.id;
-      if (el.checked) {
-        if (!s.newbies.includes(id)) s.newbies.push(id);
-      } else {
-        s.newbies = s.newbies.filter(x => x !== id);
-      }
-    } else if (el.dataset.field) {
-      const s = findSession(el.dataset.s);
-      const f = el.dataset.field;
-      s[f] = f === "date" ? el.value : num(el.value);
-    } else {
-      return;
-    }
-    commit();
+  dateEl.addEventListener('input', () => {
+    update();
+    saveDraft();
+  });
+  dateEl.addEventListener('change', () => {
+    update();
+    saveDraft();
   });
 
-  // ---------- Init ----------
-  render();
+  courtEl.addEventListener('blur', () => normalizeAmountField(courtEl));
+  shuttleEl.addEventListener('blur', () => normalizeAmountField(shuttleEl));
+  headcountEl.addEventListener('blur', normalizeHeadcountField);
+
+  minusBtn.addEventListener('click', () => {
+    const current = Math.floor(Number(headcountEl.value)) || 0;
+    headcountEl.value = String(Math.max(1, current - 1));
+    update();
+    saveDraft();
+  });
+
+  plusBtn.addEventListener('click', () => {
+    const current = Math.floor(Number(headcountEl.value)) || 0;
+    headcountEl.value = String(current + 1);
+    update();
+    saveDraft();
+  });
+
+  formEl.addEventListener('submit', handleSave);
+  newBtn.addEventListener('click', () => startNewWeek(true));
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') hideToast();
+  });
+
+  /* ---------- Auth / Init ---------- */
+
+  function initForm() {
+    const draft = loadDraft();
+
+    if (draft) {
+      dateEl.value = draft.date || todayISO();
+      courtEl.value = draft.court ?? '';
+      shuttleEl.value = draft.shuttle ?? '';
+      headcountEl.value = draft.headcount ?? '';
+      editingId = (draft.editingId && records.some((r) => r.id === draft.editingId))
+        ? draft.editingId
+        : null;
+    } else {
+      editingId = null;
+      dateEl.value = todayISO();
+      courtEl.value = '';
+      shuttleEl.value = '';
+      headcountEl.value = '';
+    }
+
+    updateEditingUI();
+    update();
+    renderHistory();
+  }
+
+  let enteredFor = null;
+
+  async function enterApp(user) {
+    if (enteredFor === user.id) return;
+    enteredFor = user.id;
+    userEmailEl.textContent = user.email || '';
+    userEmailEl.hidden = false;
+    logoutBtn.hidden = false;
+    loginView.hidden = true;
+    appView.hidden = false;
+    await fetchRecords();
+    initForm();
+  }
+
+  function leaveApp() {
+    enteredFor = null;
+    records = [];
+    editingId = null;
+    appView.hidden = true;
+    userEmailEl.hidden = true;
+    logoutBtn.hidden = true;
+    loginView.hidden = false;
+    loginPasswordEl.value = '';
+    renderHistory();
+  }
+
+  loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    loginErrorEl.textContent = '';
+    loginBtn.disabled = true;
+    const { error } = await sb.auth.signInWithPassword({
+      email: loginEmailEl.value.trim(),
+      password: loginPasswordEl.value
+    });
+    loginBtn.disabled = false;
+    if (error) {
+      loginErrorEl.textContent = '登入失敗，請確認電子郵件和密碼。';
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => { sb.auth.signOut(); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    // Defer to avoid calling supabase inside its own auth callback
+    window.setTimeout(() => {
+      if (session && session.user) enterApp(session.user);
+      else leaveApp();
+    }, 0);
+  });
+
+})();
 </script>
 </body>
 </html>
